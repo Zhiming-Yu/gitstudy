@@ -1,0 +1,104 @@
+hostname R03
+no ip domain lookup
+!
+interface Loopback0
+ ip address 150.1.3.3 255.255.255.255
+!
+interface GigabitEthernet1
+ no shut
+!
+interface GigabitEthernet1.13
+ encapsulation dot1Q 13
+ ip address 155.1.13.3 255.255.255.0
+!
+interface GigabitEthernet1.36
+ encapsulation dot1Q 36
+ ip address 10.1.36.3 255.255.255.0
+!
+router ospf 1
+ router-id 150.1.3.3
+ network 150.1.3.3 0.0.0.0 area 0
+ network 155.1.13.3 0.0.0.0 area 0
+!
+end
+**************************************
+R03#sh ip route ospf
+
+Gateway of last resort is not set
+
+      150.1.0.0/32 is subnetted, 7 subnets
+O        150.1.1.1 [110/2] via 155.1.13.1, 01:12:47, GigabitEthernet1.13
+O        150.1.2.2 [110/3] via 155.1.13.1, 01:12:47, GigabitEthernet1.13
+O        150.1.4.4 [110/3] via 155.1.13.1, 01:11:10, GigabitEthernet1.13
+      155.1.0.0/16 is variably subnetted, 4 subnets, 2 masks
+O        155.1.12.0/24 [110/2] via 155.1.13.1, 01:12:47, GigabitEthernet1.13
+O        155.1.14.0/24 [110/2] via 155.1.13.1, 01:12:47, GigabitEthernet1.13
+**************************************
+interface Tunnel0
+ ip address 192.168.1.3 255.255.255.0
+ tunnel source GigabitEthernet1.13
+******************************************
+ ip nhrp network-id 1
+ ip nhrp nhs 192.168.1.2
+ ip nhrp map 192.168.1.2 155.1.12.2
+*****************************************
+ tunnel mode gre multipoint
+*****************************************
+ ip nhrp map multicast 155.1.12.2
+!
+router eigrp 1
+ network 10.1.36.0 0.0.0.255
+ network 192.168.1.0
+****************************************
+R03#show ip route eigrp
+
+Gateway of last resort is not set
+
+      10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks
+D        10.1.25.0/24 [90/26880256] via 192.168.1.2, 00:51:09, Tunnel0
+D        10.1.47.0/24 [90/28160256] via 192.168.1.4, 00:50:46, Tunnel0
+      150.1.0.0/32 is subnetted, 7 subnets
+D        150.1.5.5 [90/27008256] via 192.168.1.2, 00:50:26, Tunnel0
+D        150.1.6.6 [90/130816] via 10.1.36.6, 00:50:01, GigabitEthernet1.36
+D        150.1.7.7 [90/28288256] via 192.168.1.4, 00:14:22, Tunnel0
+**************************************
+R03#sh dmvpn
+
+Interface: Tunnel0, IPv4 NHRP Details
+Type:Spoke, NHRP Peers:1,
+
+ # Ent  Peer NBMA Addr Peer Tunnel Add State  UpDn Tm Attrb
+ ----- --------------- --------------- ----- -------- -----
+     1 155.1.12.2          192.168.1.2    UP 00:54:03     S
+
+**************************************
+R03#sh ip nhrp
+192.168.1.2/32 via 192.168.1.2
+   Tunnel0 created 00:54:23, never expire
+   Type: static, Flags:
+   NBMA address: 155.1.12.2
+**************************************
+After R6 ping R7
+**************************************
+R03#show dmvpn
+
+Interface: Tunnel0, IPv4 NHRP Details
+Type:Spoke, NHRP Peers:2,
+
+ # Ent  Peer NBMA Addr Peer Tunnel Add State  UpDn Tm Attrb
+ ----- --------------- --------------- ----- -------- -----
+     1 155.1.12.2          192.168.1.2    UP 03:41:06     S
+     1 155.1.14.4          192.168.1.4    UP 00:01:34     D
+***************************************
+R03#sh ip nhrp
+192.168.1.2/32 via 192.168.1.2
+   Tunnel0 created 03:41:41, never expire
+   Type: static, Flags: used
+   NBMA address: 155.1.12.2
+192.168.1.4/32 via 192.168.1.4
+   Tunnel0 created 00:02:08, expire 00:07:51
+   Type: dynamic, Flags: router nhop
+   NBMA address: 155.1.14.4
+***************************************
+
+
